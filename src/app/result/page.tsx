@@ -12,6 +12,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
 
   return (
     <ResultLoader
+      key={`${params?.text ?? ""}:${params?.lang ?? ""}`}
       initialText={params?.text}
       initialLanguage={params?.lang}
     />
