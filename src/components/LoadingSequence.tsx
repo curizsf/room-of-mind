@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "./LanguageToggle";
 
-const MESSAGE_STEP_MS = 1600;
-const ROUTE_DELAY_MS = 5600;
+const MESSAGE_STEP_MS = 2800;
+const FINAL_MESSAGE_HOLD_MS = 3400;
 
 type LoadingSequenceProps = {
   initialLanguage?: string;
@@ -22,6 +22,8 @@ export function LoadingSequence({ initialLanguage }: LoadingSequenceProps) {
   const messages = uiCopy[language].loading;
   const isChinese = language === "zh";
   const prefersReducedMotion = useReducedMotion();
+  const routeDelayMs =
+    MESSAGE_STEP_MS * Math.max(messages.length - 1, 0) + FINAL_MESSAGE_HOLD_MS;
 
   useEffect(() => {
     const messageTimer = window.setInterval(() => {
@@ -33,17 +35,18 @@ export function LoadingSequence({ initialLanguage }: LoadingSequenceProps) {
     const currentLanguage = normalizeLanguage(params.get("lang") ?? language);
     const routeTimer = window.setTimeout(() => {
       window.localStorage.setItem("room-of-mind-language", currentLanguage);
+      const runId = Date.now().toString(36);
       const target = textParam
-        ? `/result?text=${encodeURIComponent(textParam)}&lang=${currentLanguage}`
-        : `/result?lang=${currentLanguage}`;
+        ? `/result?text=${encodeURIComponent(textParam)}&lang=${currentLanguage}&run=${runId}`
+        : `/result?lang=${currentLanguage}&run=${runId}`;
       router.push(target);
-    }, ROUTE_DELAY_MS);
+    }, routeDelayMs);
 
     return () => {
       window.clearInterval(messageTimer);
       window.clearTimeout(routeTimer);
     };
-  }, [language, messages.length, router]);
+  }, [language, messages.length, routeDelayMs, router]);
 
   function handleLanguageChange(nextLanguage: Language) {
     setLanguage(nextLanguage);

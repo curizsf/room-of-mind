@@ -14,6 +14,7 @@ const LAST_ROOM_KEY = "room-of-mind-last-room-type";
 type ResultLoaderProps = {
   initialText?: string;
   initialLanguage?: string;
+  runId?: string;
 };
 
 const fallback: RoomResult = {
@@ -35,6 +36,7 @@ function preloadImage(src: string) {
 export function ResultLoader({
   initialText,
   initialLanguage,
+  runId,
 }: ResultLoaderProps) {
   const [result, setResult] = useState<RoomResult | null>(null);
   const language: Language = normalizeLanguage(initialLanguage);
@@ -42,6 +44,8 @@ export function ResultLoader({
 
   useEffect(() => {
     let cancelled = false;
+    const startedAt = Date.now();
+    const MIN_RESULT_LOADER_MS = 1400;
     const text =
       initialText ??
       window.localStorage.getItem(PROMPT_KEY) ??
@@ -59,9 +63,19 @@ export function ResultLoader({
       },
       body: JSON.stringify({ text, previousInput, previousRoomType }),
     })
-      .then((response) => response.json() as Promise<RoomResult>)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Analyze request failed");
+        }
+        return response.json() as Promise<RoomResult>;
+      })
       .then(async (nextResult) => {
         await preloadImage(nextResult.image);
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_RESULT_LOADER_MS - elapsed);
+        if (remaining > 0) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, remaining));
+        }
         if (cancelled) {
           return;
         }
@@ -78,7 +92,7 @@ export function ResultLoader({
     return () => {
       cancelled = true;
     };
-  }, [initialText, language]);
+  }, [initialText, language, runId]);
 
   if (!result) {
     return (
